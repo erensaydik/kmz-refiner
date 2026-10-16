@@ -1,734 +1,424 @@
 import streamlit as st
-import requests
 import pandas as pd
-import urllib.parse
-import math
+import asyncio
+import aiohttp
 from datetime import datetime, timezone
+import plotly.express as px
 
-# --- APPLE & FINTECH PLATFORM AYARLARI ---
-st.set_page_config(
-    page_title="KMZ Studio — Albion Arbitraj Terminali",
-    page_icon="",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
+# --- SAYFA AYARLARI & ÖZEL OYUN TASARIMI (CSS) ---
+st.set_page_config(page_title="Enlil God Tier Refine", layout="wide", initial_sidebar_state="expanded")
 
-# --- APPLE HUMAN INTERFACE DESIGN SYSTEM (CSS) ---
+# Albion Online temasına uygun, altın/bronz parıltılı ve metalik karanlık UI
 st.markdown("""
-    <style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
-
-    /* Temel Platform Ayarları */
-    html, body, [class*="css"] {
-        font-family: -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
-        background-color: #000000;
-        color: #f5f5f7;
-        -webkit-font-smoothing: antialiased;
-        letter-spacing: -0.01em;
-    }
-
-    #MainMenu, footer, .stDeployButton, [data-testid="stDecoration"] {
-        display: none !important;
-    }
-
+<style>
+    /* Ana Arka Plan */
     .stApp {
-        background: #000000 !important;
-        background-image: radial-gradient(circle at 50% -20%, rgba(58, 58, 60, 0.3) 0%, transparent 60%) !important;
+        background-color: #0E1216 !important;
+        color: #D1D5DB !important;
+        font-family: 'Cinzel', 'Inter', sans-serif;
     }
-
-    /* Sol Menü (Sidebar) Blur Efekti */
+    
+    /* Sol Panel (Sidebar) */
     [data-testid="stSidebar"] {
-        background-color: rgba(28, 28, 30, 0.75) !important;
-        backdrop-filter: blur(40px) saturate(200%) !important;
-        -webkit-backdrop-filter: blur(40px) saturate(200%) !important;
-        border-right: 1px solid rgba(255, 255, 255, 0.08) !important;
+        background-color: #12181F !important;
+        border-right: 2px solid #3A2F1E;
     }
-
-    /* Üst Navigasyon Barı */
-    .apple-nav {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 16px 24px;
-        background: rgba(28, 28, 30, 0.45);
-        backdrop-filter: blur(30px) saturate(180%);
-        -webkit-backdrop-filter: blur(30px) saturate(180%);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 16px;
-        margin-bottom: 28px;
+    
+    /* Altın-Bronz Başlıklar */
+    h1, h2, h3 {
+        color: #B9935A !important;
+        text-shadow: 0 0 10px rgba(185, 147, 90, 0.3);
     }
-    .apple-logo-text {
-        font-size: 21px;
-        font-weight: 700;
-        letter-spacing: -0.5px;
-        color: #f5f5f7;
-    }
-    .apple-sub {
-        font-size: 13px;
-        color: #86868b;
-        margin-left: 10px;
-        font-weight: 400;
-    }
-    .apple-badge {
-        font-size: 11px;
-        font-weight: 500;
-        padding: 4px 10px;
-        background: rgba(255, 255, 255, 0.08);
-        color: #d1d1d6;
-        border-radius: 6px;
-        border: 1px solid rgba(255, 255, 255, 0.06);
-        font-family: 'JetBrains Mono', monospace;
-    }
-
-    /* Cam Kart Yapısı */
-    .apple-card {
-        background: rgba(28, 28, 30, 0.4);
-        backdrop-filter: blur(25px) saturate(180%);
-        -webkit-backdrop-filter: blur(25px) saturate(180%);
-        border: 1px solid rgba(255, 255, 255, 0.08);
-        border-radius: 14px;
-        padding: 18px 22px;
-        transition: transform 0.2s ease, border-color 0.2s ease;
-    }
-    .apple-card:hover {
-        border-color: rgba(255, 255, 255, 0.15);
-    }
-
-    /* Analiz Paneli */
-    .analysis-panel {
-        background: rgba(10, 132, 255, 0.08);
-        border: 1px solid rgba(10, 132, 255, 0.25);
-        border-radius: 14px;
-        padding: 20px 24px;
-        margin-bottom: 24px;
-    }
-
-    /* Metrik Izgaraları */
-    .metric-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
-        gap: 16px;
-        margin: 20px 0;
-    }
-    .apple-metric-label {
-        font-size: 11px;
-        font-weight: 500;
-        color: #86868b;
-        text-transform: uppercase;
-        letter-spacing: 0.6px;
-        margin-bottom: 8px;
-    }
-    .apple-metric-val {
-        font-size: 26px;
-        font-weight: 600;
-        letter-spacing: -0.8px;
-        color: #f5f5f7;
-        font-family: 'JetBrains Mono', monospace;
-    }
-    .apple-metric-sub {
-        font-size: 12px;
-        color: #86868b;
-        margin-top: 6px;
-    }
-
-    /* Zaman Etiketleri */
-    .time-badge {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 10px;
-        padding: 3px 6px;
-        border-radius: 4px;
-        margin-top: 8px;
-        display: inline-block;
-    }
-    .time-fresh { background: rgba(48, 209, 88, 0.12); color: #30d158; border: 1px solid rgba(48, 209, 88, 0.2); }
-    .time-stale { background: rgba(255, 159, 10, 0.12); color: #ff9f0a; border: 1px solid rgba(255, 159, 10, 0.2); }
-
-    /* İnput ve Form Özelleştirmeleri */
-    div[data-baseweb="input"] {
-        background-color: rgba(44, 44, 46, 0.5) !important;
-        border: 1px solid rgba(255, 255, 255, 0.1) !important;
-        border-radius: 10px !important;
-    }
-    div[data-baseweb="input"]:focus-within {
-        border-color: #0a84ff !important;
-        box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.2) !important;
-    }
-
-    /* Aksiyon Butonu */
+    
+    /* Butonlar */
     .stButton>button {
-        background: #0071e3 !important;
-        color: #ffffff !important;
-        font-size: 13px !important;
-        font-weight: 500 !important;
-        border-radius: 8px !important;
-        border: 1px solid rgba(255,255,255,0.1) !important;
-        padding: 8px 18px !important;
-        transition: all 0.2s ease !important;
+        background: linear-gradient(135deg, #4A3B23 0%, #2A1F10 100%) !important;
+        color: #E2C38F !important;
+        border: 1px solid #755B31 !important;
+        border-radius: 4px !important;
+        font-weight: bold !important;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        transition: all 0.2s ease;
     }
     .stButton>button:hover {
-        background: #0077ed !important;
+        background: linear-gradient(135deg, #614D2E 0%, #3B2B16 100%) !important;
+        border-color: #B9935A !important;
+        box-shadow: 0 0 8px rgba(185, 147, 90, 0.5);
+        color: #FFF !important;
     }
-    </style>
+    
+    /* Kartlar (Metrik kutuları) */
+    div[data-testid="stMetricValue"] {
+        color: #E2C38F !important;
+        font-size: 24px !important;
+        font-weight: bold;
+    }
+    div[data-testid="stMetricLabel"] {
+        color: #9CA3AF !important;
+    }
+    .metric-card {
+        background-color: #161D27;
+        border: 1px solid #3A2F1E;
+        border-radius: 6px;
+        padding: 15px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.4);
+    }
+    
+    /* Input ve Sliderlar */
+    .stSlider [data-baseweb="slider"] {
+        background-color: #1C2331;
+    }
+    .stSlider [data-baseweb="slider"] div {
+        color: #B9935A !important;
+    }
+    
+    /* Özel Uyarılar */
+    .stAlert {
+        background-color: #1C1917 !important;
+        border: 1px solid #78350F !important;
+        color: #FDBA74 !important;
+    }
+</style>
 """, unsafe_allow_html=True)
 
-# --- VERİTABANI & COĞRAFİ BİLGİLER ---
-CITY_BONUSES = {
-    "Lif (Fiber)": "Lymhurst",
-    "Odun (Wood)": "Fort Sterling",
-    "Cevher (Ore)": "Thetford",
-    "Deri (Hide)": "Martlock",
-    "Taş (Stone)": "Bridgewatch"
+# --- DİL SEÇİMİ VE GÖRÜNÜM ---
+lang = st.sidebar.radio("🌐 Dil / Language", ("Türkçe", "English"))
+is_tr = (lang == "Türkçe")
+
+st.title("🛡️ ENLİL - GOD TIER REFINE SCANNER" if is_tr else "🛡️ ENLİL - GOD TIER REFINING SCANNER")
+st.markdown("*Ham Kaynaklardan İşlenmiş Bloklara: En Karlı Rafinasyonu Asenkron Güçle Analiz Et.*" if is_tr else "*From Raw Materials to Processed Blocks: Analyze the Most Profitable Refining with Async Power.*")
+
+# --- KAYNAK VE TIER SÖZLÜKLERİ ---
+RESOURCES = {
+    "Cevher (Ore -> Bar)": {
+        "raw": "ORE", "refined": "METALBAR", "icon_raw": "ORE", "icon_ref": "METALBAR",
+        "tr": {"raw_name": "Cevher", "ref_name": "Külçe"},
+        "en": {"raw_name": "Ore", "ref_name": "Bar"}
+    },
+    "Elyaf (Fiber -> Cloth)": {
+        "raw": "FIBER", "refined": "CLOTH", "icon_raw": "FIBER", "icon_ref": "CLOTH",
+        "tr": {"raw_name": "Elyaf", "ref_name": "Kumaş"},
+        "en": {"raw_name": "Fiber", "ref_name": "Cloth"}
+    },
+    "Deri (Hide -> Leather)": {
+        "raw": "HIDE", "refined": "LEATHER", "icon_raw": "HIDE", "icon_ref": "LEATHER",
+        "tr": {"raw_name": "Ham Deri", "ref_name": "Deri"},
+        "en": {"raw_name": "Hide", "ref_name": "Leather"}
+    },
+    "Odun (Wood -> Planks)": {
+        "raw": "WOOD", "refined": "PLANKS", "icon_raw": "WOOD", "icon_ref": "PLANKS",
+        "tr": {"raw_name": "Tomruk", "ref_name": "Kalas"},
+        "en": {"raw_name": "Wood", "ref_name": "Plank"}
+    },
+    "Taş (Stone -> Stone Block)": {
+        "raw": "STONE", "refined": "STONEBLOCK", "icon_raw": "STONE", "icon_ref": "STONEBLOCK",
+        "tr": {"raw_name": "Kaya", "ref_name": "Blok"},
+        "en": {"raw_name": "Stone", "ref_name": "Block"}
+    }
 }
 
-RESOURCE_INTERNAL = {
-    "Lif (Fiber)": {"raw": "FIBER", "refined": "CLOTH", "tr_raw": "Ham Lif", "tr_ref": "Kumaş"},
-    "Odun (Wood)": {"raw": "WOOD", "refined": "PLANKS", "tr_raw": "Ham Odun", "tr_ref": "Kalas"},
-    "Cevher (Ore)": {"raw": "ORE", "refined": "METALBAR", "tr_raw": "Ham Cevher", "tr_ref": "Külçe"},
-    "Deri (Hide)": {"raw": "HIDE", "refined": "LEATHER", "tr_raw": "Ham Deri", "tr_ref": "İşlenmiş Deri"},
-    "Taş (Stone)": {"raw": "ROCK", "refined": "STONEBLOCK", "tr_raw": "Ham Taş", "tr_ref": "Taş Blok"}
+# Albion Online'ın katı formül gereksinimleri (Gerekli hammadde ve bir önceki tier işlenmiş malzeme)
+TIER_FORMULAS = {
+    "T3": {"raw_qty": 2, "prev_qty": 1, "prev_tier": "T2"},
+    "T4": {"raw_qty": 2, "prev_qty": 1, "prev_tier": "T3"},
+    "T5": {"raw_qty": 3, "prev_qty": 1, "prev_tier": "T4"},
+    "T6": {"raw_qty": 4, "prev_qty": 1, "prev_tier": "T5"},
+    "T7": {"raw_qty": 5, "prev_qty": 1, "prev_tier": "T6"},
+    "T8": {"raw_qty": 5, "prev_qty": 1, "prev_tier": "T7"},
 }
 
-FAME_VALUES = {
-    "T2": 1.5, "T3": 7.5, "T4": 22.5, "T5": 90, "T6": 270, "T7": 645, "T8": 1350
-}
+ALL_LOCATIONS = ["Lymhurst", "Bridgewatch", "Martlock", "Thetford", "Fort Sterling", "Caerleon"]
 
-# --- BAŞLIK BÖLÜMÜ ---
-st.markdown("""
-<div class="apple-nav">
-    <div style="display: flex; align-items: center;">
-        <span class="apple-logo-text">KMZ Studio</span>
-        <span class="apple-sub">Enterprise Finans ve Tedarik Analiz Terminali</span>
-    </div>
-    <div style="display: flex; gap: 8px;">
-        <span class="apple-badge">v9.0 Kusursuz Sürüm</span>
-        <span class="apple-badge" style="color: #30d158; border-color: rgba(48, 209, 88, 0.2);">● Çevrimiçi</span>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-# --- KONTROL PANELİ (SİDEBAR) ---
-st.sidebar.markdown("### ⚙️ Sistem Konfigürasyonu")
-
-if st.sidebar.button("Piyasa Verilerini Senkronize Et", use_container_width=True):
-    st.cache_data.clear()
-
-server = st.sidebar.selectbox("Bölgesel Sunucu", ["europe", "west", "east"], index=0)
-selected_resource = st.sidebar.selectbox("Materyal Sınıfı", list(CITY_BONUSES.keys()))
-
-col_t, col_e = st.sidebar.columns(2)
-with col_t:
-    selected_tier = st.selectbox("Hedef Seviye", [f"T{i}" for i in range(2, 9)], index=3)
-with col_e:
-    enchant_choice = st.selectbox("Işıma (Enchant)", [".0 (Düz)", ".1 (Yeşil)", ".2 (Mavi)", ".3 (Mor)", ".4 (Altın)"], index=0)
-    enchant_lvl = int(enchant_choice[1])
+# --- SOL PANEL (FİLTRELER VE AYARLAR) ---
+st.sidebar.header("⚙️ Genel Ayarlar" if is_tr else "⚙️ General Settings")
+max_data_age = st.sidebar.slider("Maks. Gecikme (Dakika)" if is_tr else "Max Delay (Mins)", 5, 1440, 120, 15)
+market_tax = st.sidebar.slider("Pazar Vergisi (%)" if is_tr else "Market Tax (%)", 0.0, 10.0, 4.0, 0.1)
 
 st.sidebar.markdown("---")
-st.sidebar.markdown("### 🏷️ Vergi ve Emir Politikası")
-
-sell_as_order = st.sidebar.toggle(
-    "Satış Emri İle Sat (Sell Order)", 
-    value=True, 
-    help="Aktifken pazar tahtasına ilan bırakırsınız (Kurulum vergisi eklenir). Kapalıyken bekleyen alıcılara anında satarsınız."
+st.sidebar.header("⚒️ Rafinasyon Geri Dönüş Oranı (RRR)" if is_tr else "⚒️ Resource Return Rate (RRR)")
+# RRR Değeri doğrudan kâr oranlarını çarpar (Geri dönüşüm)
+rrr_preset = st.sidebar.selectbox(
+    "Geri Dönüş (RRR) Senaryosu:" if is_tr else "RRR Presets:",
+    (
+        "Geri Dönüş Yok (%0)" if is_tr else "No Return (%0)",
+        "Sıradan Şehir (%15.2)" if is_tr else "Normal City (%15.2)",
+        "Bonuslu Şehir (%36.7)" if is_tr else "City Bonus (%36.7)",
+        "Odaklanma (Focus) İle (%43.5)" if is_tr else "Focus Without Bonus (%43.5)",
+        "Odaklanma + Şehir Bonusu (%53.9)" if is_tr else "Focus + City Bonus (%53.9)",
+        "Özel Değer Belirle" if is_tr else "Custom Value"
+    ),
+    index=2
 )
-buy_order_mode = st.sidebar.checkbox("Tedariki 'Alış Emri' (Buy Order) İle Yap", value=False)
-has_premium = st.sidebar.checkbox("Premium Vergi İndirimi Geçerli", value=True)
 
-base_tax = 0.04 if has_premium else 0.08
-setup_tax = 0.025 if sell_as_order else 0.0
-total_market_tax = base_tax + setup_tax
-
-use_focus = st.sidebar.checkbox("Odaklanma Puanı (Focus) Kullan", value=False)
-default_rrr = 53.9 if use_focus else 36.7
-rrr_percent = st.sidebar.number_input("Materyal Geri Dönüş Oranı (RRR %)", min_value=0.0, max_value=100.0, value=default_rrr, step=0.1)
-rrr = rrr_percent / 100.0
-focus_per_unit = st.sidebar.number_input("Birim Başına Focus Maliyeti", min_value=1, max_value=2000, value=112, step=1) if use_focus else 0
+if "Özel" in rrr_preset or "Custom" in rrr_preset:
+    rrr_value = st.sidebar.slider("Özel RRR %", 0.0, 60.0, 36.7, 0.1)
+else:
+    preset_map = {
+        "Yok": 0.0, "No": 0.0,
+        "Sıradan": 15.2, "Normal": 15.2,
+        "Bonuslu": 36.7, "City": 36.7,
+        "Odaklanma (Focus)": 43.5, "Focus Without": 43.5,
+        "Odaklanma +": 53.9, "Focus +": 53.9
+    }
+    rrr_value = [v for k, v in preset_map.items() if k in rrr_preset][0]
 
 st.sidebar.markdown("---")
-st.sidebar.markdown("### 📍 Coğrafi Konumlar")
-cities = ["Bridgewatch", "Fort Sterling", "Lymhurst", "Martlock", "Thetford", "Caerleon"]
-buy_city = st.sidebar.selectbox("Tedarik Şehri", cities, index=1)
-refine_city = st.sidebar.selectbox("İşleme İstasyonu", cities, index=cities.index(CITY_BONUSES[selected_resource]))
-sell_city = st.sidebar.selectbox("Hedef Pazar", cities, index=cities.index(CITY_BONUSES[selected_resource]))
+st.sidebar.header("🌎 Pazar Lokasyonu" if is_tr else "🌎 Market Location")
+refining_city = st.sidebar.selectbox("Rafinasyonun Yapılacağı Şehir" if is_tr else "Refining City", ALL_LOCATIONS, index=2)
 
-station_fee = st.sidebar.number_input("Tesis Kullanım Bedeli (%)", min_value=0, max_value=9999, value=335, step=5)
+st.sidebar.markdown("---")
+st.sidebar.header("🌿 Rafinasyon Detayları" if is_tr else "🌿 Refining Details")
+selected_res_key = st.sidebar.selectbox("Kaynak Türü" if is_tr else "Resource Type", list(RESOURCES.keys()))
+res_meta = RESOURCES[selected_res_key]
 
-ideal_city = CITY_BONUSES[selected_resource]
-if refine_city != ideal_city:
-    st.markdown(f"""
-    <div style="background: rgba(255, 159, 10, 0.1); border: 1px solid rgba(255, 159, 10, 0.3); border-radius: 8px; padding: 10px 14px; margin-top: 10px;">
-        <span style="font-weight: 500; font-size: 12px; color: #ff9f0a;">Verimlilik Uyarısı:</span> 
-        <span style="font-size: 12px; color: #d1d1d6;">{selected_resource} için maksimum verim {ideal_city} şehrindedir. Mevcut konum ({refine_city}) kârlılığı düşürebilir.</span>
-    </div>
-    """, unsafe_allow_html=True)
+# --- ASENKRON VERİ ÇEKME MOTORU ---
+BASE_URL = "https://www.albion-online-data.com/api/v2/stats/Prices"
 
-# --- MATEMATİKSEL MOTOR & ZİNCİR TARİFLERİ ---
-RECIPES = {
-    "T2": {"raw": 1, "lower": 0}, "T3": {"raw": 2, "lower": 1}, "T4": {"raw": 2, "lower": 1},
-    "T5": {"raw": 3, "lower": 1}, "T6": {"raw": 4, "lower": 1}, "T7": {"raw": 5, "lower": 1},
-    "T8": {"raw": 5, "lower": 1},
-}
-ITEM_VALUES = {"T2": 2, "T3": 6, "T4": 14, "T5": 38, "T6": 102, "T7": 262, "T8": 582}
-RAW_WEIGHTS = {"T2": 0.3, "T3": 0.5, "T4": 0.7, "T5": 0.9, "T6": 1.2, "T7": 1.5, "T8": 1.9}
-
-tier_num = int(selected_tier[1])
-raw_prefix = RESOURCE_INTERNAL[selected_resource]["raw"]
-refined_prefix = RESOURCE_INTERNAL[selected_resource]["refined"]
-tr_refined_name = RESOURCE_INTERNAL[selected_resource]["tr_ref"]
-tr_raw_name = RESOURCE_INTERNAL[selected_resource]["tr_raw"]
-
-target_amount = st.number_input(
-    f"Hedeflenen Üretim Hacmi ({selected_tier}{'' if enchant_lvl == 0 else '.' + str(enchant_lvl)} {tr_refined_name})",
-    min_value=1,
-    value=2500,
-    step=100
-)
-
-tier_data = {}
-current_target = target_amount
-total_crafting_fee_zh = 0 
-total_weight_zh = 0.0
-total_fame_zh = 0
-
-for t in range(tier_num, 1, -1):
-    tier_key = f"T{t}"
-    t_enc = enchant_lvl if t >= 4 else 0
-    crafts_needed = current_target
-
-    enchant_mult = 1 if t_enc == 0 else (2 ** t_enc)
-    item_val = ITEM_VALUES[tier_key] * enchant_mult
-    tier_craft_cost = crafts_needed * item_val * 0.1125 * (station_fee / 100)
-    total_crafting_fee_zh += tier_craft_cost
-
-    base_fame = FAME_VALUES[tier_key] * enchant_mult
-    total_fame_zh += crafts_needed * base_fame
-
-    raw_mult = RECIPES[tier_key]["raw"]
-    raw_needed = int(round(current_target * raw_mult * (1 - rrr)))
-
-    if t_enc > 0:
-        api_req_ids = [
-            f"{tier_key}_{raw_prefix}_LEVEL{t_enc}@{t_enc}",
-            f"{tier_key}_{raw_prefix}@{t_enc}"
-        ]
-        display_name = f"{tier_key}.{t_enc} {tr_raw_name}"
-    else:
-        api_req_ids = [f"{tier_key}_{raw_prefix}"]
-        display_name = f"{tier_key} {tr_raw_name}"
-
-    lower_tier_key = f"T{t-1}" if t > 2 else None
-    lower_enc = enchant_lvl if (t-1) >= 4 else 0
-    lower_refined_api_ids = []
-    
-    if lower_tier_key:
-        if lower_enc > 0:
-             lower_refined_api_ids = [
-                f"{lower_tier_key}_{refined_prefix}_LEVEL{lower_enc}@{lower_enc}",
-                f"{lower_tier_key}_{refined_prefix}@{lower_enc}"
-             ]
-        else:
-             lower_refined_api_ids = [f"{lower_tier_key}_{refined_prefix}"]
-
-    tier_data[tier_key] = {
-        "amount": raw_needed,
-        "enchant": t_enc,
-        "display": display_name,
-        "api_ids": api_req_ids,
-        "lower_refined_api_ids": lower_refined_api_ids,
-        "lower_tier_needed": int(round(current_target * RECIPES[tier_key]["lower"] * (1 - rrr))) if lower_tier_key else 0
-    }
-
-    total_weight_zh += raw_needed * RAW_WEIGHTS[tier_key]
-
-    lower_mult = RECIPES[tier_key]["lower"]
-    if lower_mult > 0:
-        current_target = current_target * lower_mult * (1 - rrr)
-
-if enchant_lvl > 0:
-    sell_api_ids = [
-        f"T{tier_num}_{refined_prefix}_LEVEL{enchant_lvl}@{enchant_lvl}",
-        f"T{tier_num}_{refined_prefix}@{enchant_lvl}"
-    ]
-    sell_display_name = f"T{tier_num}.{enchant_lvl} {tr_refined_name}"
-    primary_sell_id = sell_api_ids[0]
-else:
-    sell_api_ids = [f"T{tier_num}_{refined_prefix}"]
-    sell_display_name = f"T{tier_num} {tr_refined_name}"
-    primary_sell_id = sell_api_ids[0]
-
-all_buy_ids = [aid for data in tier_data.values() for aid in data["api_ids"]]
-all_lower_refined_ids = [aid for data in tier_data.values() for aid in data["lower_refined_api_ids"]]
-all_fetch_ids = list(set(all_buy_ids + all_lower_refined_ids + sell_api_ids))
-
-all_cities = list(set([buy_city, sell_city, "Caerleon"]))
-
-# --- CANLI PİYASA APİ BAĞLANTILARI ---
-@st.cache_data(ttl=60)
-def fetch_market_data(server_name, item_ids, cities_list):
-    if not item_ids or not cities_list: return []
-    ids_str = urllib.parse.quote(",".join(item_ids))
-    cities_str = urllib.parse.quote(",".join(cities_list))
-    url = f"https://{server_name}.albion-online-data.com/api/v2/stats/Prices/{ids_str}.json?locations={cities_str}"
-    headers = {"User-Agent": "Mozilla/5.0"}
+async def fetch_url(session, url):
     try:
-        res = requests.get(url, headers=headers, timeout=10)
-        if res.status_code == 200:
-            return res.json()
-    except Exception:
-        pass
+        async with session.get(url, timeout=12) as response:
+            if response.status == 200: return await response.json()
+    except: pass
     return []
 
-@st.cache_data(ttl=60)
-def fetch_order_depth(server_name, item_id, city_name):
-    url = f"https://{server_name}.albion-online-data.com/api/v2/stats/view/{item_id}.json?locations={city_name}"
-    headers = {"User-Agent": "Mozilla/5.0"}
+async def fetch_refining_data(items, locs):
+    # Çift istek engeli ve güvenli kümeleme
+    chunk_size = 80
+    urls = [f"{BASE_URL}/{','.join(items[i:i + chunk_size])}?locations={locs}" for i in range(0, len(items), chunk_size)]
+    async with aiohttp.ClientSession() as session:
+        tasks = [fetch_url(session, url) for url in urls]
+        results = await asyncio.gather(*tasks)
+    return [item for sublist in results for item in sublist]
+
+def get_data_sync(items, locs):
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    data = loop.run_until_complete(fetch_all_data_async_with_retry(items, locs))
+    loop.close()
+    return data
+
+async def fetch_all_data_async_with_retry(items, locs):
+    return await fetch_refining_data(items, locs)
+
+def calc_age(date_str):
+    if not date_str or date_str.startswith("0001"): return 999999
     try:
-        res = requests.get(url, headers=headers, timeout=10)
-        if res.status_code == 200:
-            return res.json()
-    except Exception:
-        pass
-    return []
+        dt = datetime.strptime(date_str, "%Y-%m-%dT%H:%M:%S").replace(tzinfo=timezone.utc)
+        return int((datetime.now(timezone.utc) - dt).total_seconds() / 60)
+    except: return 999999
 
-def format_time_diff(date_str):
-    if not date_str or date_str.startswith("0001"):
-        return "Bilinmiyor", False
-    try:
-        clean_str = date_str.split(".")[0].replace("Z", "")
-        dt = datetime.fromisoformat(clean_str).replace(tzinfo=timezone.utc)
-        now = datetime.now(timezone.utc)
-        diff = (now - dt).total_seconds()
+# Oyun içi ikonları Albion CDN'den çek
+def get_item_icon(item_id):
+    return f"https://render.albiononline.com/v1/item/{item_id}.png"
+
+# --- TÜM COMBOS VE ID ÜRETİMİ ---
+combos = []
+for tier in ["T3", "T4", "T5", "T6", "T7", "T8"]:
+    # Enchant seviyeleri (.0, .1, .2, .3, .4)
+    enchants = [""] if tier == "T3" else ["", "_LEVEL1", "_LEVEL2", "_LEVEL3", "_LEVEL4"]
+    for enc in enchants:
+        # Ham Kaynak, İşlenmiş Kaynak ve Bir Önceki Seviyenin flat (ençantsız) işlenmişi
+        combos.append({
+            "tier": tier,
+            "enchant": enc.replace("_LEVEL", "."),
+            "raw_id": f"{tier}_{res_meta['raw']}{enc}",
+            "ref_id": f"{tier}_{res_meta['refined']}{enc}",
+            "prev_id": f"{TIER_FORMULAS[tier]['prev_tier']}_{res_meta['refined']}" # Albion Kuralı: Enchantlı dahi olsa önceki tier her zaman flat (.0) istenir
+        })
+
+# Benzersiz tüm ID'leri listele ve API'ye gönder
+all_item_ids = list(set([c["raw_id"] for c in combos] + [c["ref_id"] for c in combos] + [c["prev_id"] for c in combos]))
+
+col1, col2 = st.columns([8, 2])
+with col2:
+    if st.button("🔄 Verileri Yenile" if is_tr else "🔄 Refresh Prices", use_container_width=True):
+        st.cache_data.clear()
+
+with st.spinner("⚔️ Albion Pazar Verileri Asenkron Çekiliyor..." if is_tr else "⚔️ Fetching Albion Market Data..."):
+    raw_api_data = get_data_sync(all_item_ids, refining_city)
+
+if not raw_api_data:
+    st.error("⚠️ Albion API'sinden fiyatlar alınamadı! Şehri veya filtreleri değiştirip tekrar deneyin." if is_tr else "⚠️ Failed to fetch prices from Albion API!")
+    st.stop()
+
+# Fiyat veritabanını DataFrame'e basıp filtrele
+df = pd.DataFrame(raw_api_data)
+df['age'] = df['sell_price_min_date'].apply(calc_age)
+
+# Şehre göre en güncel, sıfır olmayan fiyat eşleşmelerini çıkar (Eğer sıfırsa bayatlıktan eleriz)
+df = df[(df['city'] == refining_city) & (df['sell_price_min'] > 0) & (df['age'] <= max_data_age)]
+
+# Hızlı erişim için sözlük oluştur
+price_dict = {}
+age_dict = {}
+for _, row in df.iterrows():
+    price_dict[row['item_id']] = row['sell_price_min']
+    age_dict[row['item_id']] = row['age']
+
+# --- RAFİNASYON HESAPLAMA MOTORU (MATEMATİKSEL MÜKEMMELLİK) ---
+calculated_data = []
+
+for c in combos:
+    tier = c["tier"]
+    enc = c["enchant"] if c["enchant"] else ".0"
+    formula = TIER_FORMULAS[tier]
+    
+    raw_p = price_dict.get(c["raw_id"], 0)
+    ref_p = price_dict.get(c["ref_id"], 0)
+    prev_p = price_dict.get(c["prev_id"], 0)
+    
+    # Tüm verileri mevcut olmayanları listeye alma
+    if raw_p == 0 or ref_p == 0 or prev_p == 0:
+        continue
         
-        if diff < 3600:
-            return f"{int(diff // 60)} dk önce", True
-        elif diff < 86400:
-            return f"{int(diff // 3600)} saat önce", True
-        else:
-            return f"{int(diff // 86400)} gün önce", False
-    except Exception:
-        return "Bilinmiyor", False
-
-with st.spinner("Piyasa verileri eşzamanlanıyor..."):
-    raw_api_data = fetch_market_data(server, all_fetch_ids, all_cities)
-    depth_data = fetch_order_depth(server, primary_sell_id, sell_city)
-
-buy_prices_raw = {}
-buy_time_labels = {}
-buy_prices_refined_lower = {} 
-
-sell_order_price = 0
-sell_instant_price = 0
-sell_time_label = ("Bilinmiyor", False)
-black_market_buy_price = 0
-
-for entry in raw_api_data:
-    item = entry.get("item_id")
-    city = entry.get("city")
-    sell_min = entry.get("sell_price_min", 0)
-    buy_max = entry.get("buy_price_max", 0)
-    sell_date = entry.get("sell_price_min_date", "")
-
-    if city == buy_city:
-        p_raw = sell_min if sell_min > 0 else buy_max
-        for t_k, t_v in tier_data.items():
-            if item in t_v["api_ids"] and p_raw > 0:
-                if t_k not in buy_prices_raw or p_raw < buy_prices_raw[t_k]:
-                    buy_prices_raw[t_k] = p_raw
-                    buy_time_labels[t_k] = format_time_diff(sell_date)
-            
-            if item in t_v["lower_refined_api_ids"] and p_raw > 0:
-                if t_k not in buy_prices_refined_lower or p_raw < buy_prices_refined_lower[t_k]:
-                    buy_prices_refined_lower[t_k] = p_raw
-
-    if city == sell_city and (item in sell_api_ids):
-        if sell_min > 0 and (sell_order_price == 0 or sell_min < sell_order_price):
-            sell_order_price = sell_min
-            sell_time_label = format_time_diff(sell_date)
-        if buy_max > 0 and (sell_instant_price == 0 or buy_max > sell_instant_price):
-            sell_instant_price = buy_max
-            
-    if city == "Black Market" and (item in sell_api_ids):
-        if buy_max > 0 and (black_market_buy_price == 0 or buy_max > black_market_buy_price):
-            black_market_buy_price = buy_max
-
-if sell_as_order:
-    calculated_sell_price = sell_order_price if sell_order_price > 0 else sell_instant_price
-else:
-    calculated_sell_price = sell_instant_price if sell_instant_price > 0 else sell_order_price
-
-# --- BÖLÜM 1: ZİNCİR REÇETE PORTFÖYÜ ---
-st.markdown("<p style='font-size: 12px; font-weight: 600; color: #86868b; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 20px; margin-bottom: 12px;'>I. Hammadde Tedarik Çizelgesi (Tam Zincir)</p>", unsafe_allow_html=True)
-cols = st.columns(len(tier_data))
-
-for i, (t_k, t_v) in enumerate(tier_data.items()):
-    t_label, is_fresh = buy_time_labels.get(t_k, ("Bilinmiyor", False))
-    time_class = "time-fresh" if is_fresh else "time-stale"
+    # Gecikme süreleri (Hangisi en eskiyse onu baz alırız)
+    data_age = max(age_dict.get(c["raw_id"], 0), age_dict.get(c["ref_id"], 0), age_dict.get(c["prev_id"], 0))
     
-    cols[i].markdown(f"""
-    <div class="apple-card" style="text-align: center;">
-        <div style="font-size: 12px; font-weight: 500; color: #86868b;">{t_v['display']}</div>
-        <div style="font-size: 26px; font-weight: 700; color: #f5f5f7; margin: 4px 0; letter-spacing: -0.5px;">{t_v['amount']:,}</div>
-        <div style="font-size: 11px; color: #48484a; font-family: monospace;">{t_k}_{raw_prefix}</div>
-        <span class="time-badge {time_class}">{t_label}</span>
-    </div>
-    """, unsafe_allow_html=True)
+    # 🌟 Matematiksel Geri Dönüşüm (Continuous Recycling) Formülü:
+    # RRR (Geri Dönüşüm) sayesinde, her 1 adet işleme için gereken net hammadde (1 - RRR) kadar azalır!
+    # Çünkü geri dönen malzemeler tekrar üretim döngüsüne katılır.
+    rrr_factor = 1 - (rrr_value / 100)
+    
+    raw_qty_needed = formula["raw_qty"] * rrr_factor
+    prev_qty_needed = formula["prev_qty"] * rrr_factor
+    
+    # Gümüş olarak maliyet
+    maliyet = (raw_qty_needed * raw_p) + (prev_qty_needed * prev_p)
+    gelir = ref_p * (1 - (market_tax / 100))
+    
+    net_kar = gelir - maliyet
+    roi = (net_kar / maliyet) * 100 if maliyet > 0 else 0
+    
+    calculated_data.append({
+        "Eşya Seviyesi": f"{tier}{enc}",
+        "Ham Kaynak": c["raw_id"],
+        "İşlenmiş Kaynak": c["ref_id"],
+        "Malzeme": format_item_name(f"{tier}_{res_meta['raw']}{c['enchant']}"),
+        "Ham Fiyat": raw_p,
+        "Önceki Seviye Fiyat": prev_p,
+        "İşlenmiş Fiyat": ref_p,
+        "Efektif Maliyet": int(maliyet),
+        "Net Kâr": int(net_kar),
+        "Kâr Oranı (ROI)": roi,
+        "En Son Güncelleme": f"{data_age} dk önce" if is_tr else f"{data_age}m ago",
+        "raw_p_id": c["raw_id"],
+        "ref_p_id": c["ref_id"],
+        "prev_p_id": c["prev_id"]
+    })
 
-# --- BÖLÜM 2: PİYASA FİYATLARI VE MÜDAHALE FORMU ---
-st.markdown("<p style='font-size: 12px; font-weight: 600; color: #86868b; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 30px; margin-bottom: 12px;'>II. Canlı Fiyatlandırma Paneli (Gümüş)</p>", unsafe_allow_html=True)
-
-with st.form("price_input_form"):
-    num_cols = len(tier_data) + 2 if tier_num >= 3 else len(tier_data) + 1
-    input_cols = st.columns(num_cols)
-    price_inputs = {}
-
-    for i, (t_k, t_v) in enumerate(tier_data.items()):
-        api_p = int(buy_prices_raw.get(t_k, 0))
-        if buy_order_mode and api_p > 0:
-            api_p = int(api_p * 0.85)
-        price_inputs[t_k] = input_cols[i].number_input(f"Birim Maliyet: {t_v['display']}", value=api_p, step=1)
-
-    lower_tier_price_input = 0
-    if tier_num >= 3:
-        target_key = f"T{tier_num}"
-        lower_tier_key = f"T{tier_num-1}"
-        lower_enc = enchant_lvl if (tier_num-1) >= 4 else 0
-        lower_ref_display = f"{lower_tier_key}.{lower_enc} {tr_refined_name}" if lower_enc > 0 else f"{lower_tier_key} {tr_refined_name}"
+# --- ARAYÜZÜN OYUNCU MODUNA UYARLANMASI ---
+def format_item_name(item_id):
+    tier_part = item_id[:2]
+    tier_str = tier_part.replace("T", "Seviye ") if is_tr else tier_part.replace("T", "Tier ")
+    
+    enchant = ""
+    base_id = item_id[2:]
+    if "@" in item_id:
+        parts = item_id.split("@")
+        base_id = parts[0][2:]
+        enchant = f" .{parts[1]}"
+    elif "_LEVEL" in item_id:
+        parts = item_id.split("_LEVEL")
+        base_id = parts[0][2:]
+        enchant = f" .{parts[1]}"
         
-        api_lower_ref_p = int(buy_prices_refined_lower.get(target_key, 0))
-        if buy_order_mode and api_lower_ref_p > 0:
-            api_lower_ref_p = int(api_lower_ref_p * 0.85)
-            
-        lower_tier_price_input = input_cols[-2].number_input(f"Ara Mamul: {lower_ref_display}", value=api_lower_ref_p, step=1)
+    name_dict = ITEM_NAMES_TR if is_tr else ITEM_NAMES_EN
+    item_name = name_dict.get(base_id, base_id)
+    return f"{tier_str} {item_name}{enchant}"
 
-    sell_label = f"Satış Fiyatı: {sell_display_name}"
-    sell_price_input = input_cols[-1].number_input(sell_label, value=int(calculated_sell_price), step=1)
-    
-    submit_prices = st.form_submit_button("Hesaplamaları Senkronize Et", use_container_width=True)
+# --- SEKMELİ ANALİZ GÖRÜNÜMÜ ---
+tab1, tab2 = st.tabs(["📊 Tek Seviye Rafinasyon Analizi" if is_tr else "📊 Single Level Refining", "🛡️ Çoklu Seviye Karşılaştırması" if is_tr else "🛡️ Multi-Level Comparison"])
 
-# Piyasa Derinliği Özet Barı
-st.markdown(f"""
-<div style="display: flex; gap: 12px; margin-top: -6px; margin-bottom: 24px; flex-wrap: wrap;">
-    <span class="apple-badge">Minimum Satış Emri: <b>{sell_order_price:,} 🥈</b></span>
-    <span class="apple-badge">Maksimum Alış Teklifi: <b>{sell_instant_price:,} 🥈</b></span>
-    <span class="apple-badge" style="background: rgba(10, 132, 255, 0.12); color: #0a84ff; border-color: rgba(10, 132, 255, 0.2);">Karaborsa Alış Fiyatı: <b>{black_market_buy_price:,} 🥈</b></span>
-</div>
-""", unsafe_allow_html=True)
-
-# --- BÖLÜM 3: TEDARİK STRATEJİSİ (MAKE VS BUY) ---
-cost_zh = 0
-cost_buy_lower = 0
-savings = 0
-make_vs_buy_decision = "Tam Zincir Rafinasyon"
-
-if tier_num >= 3:
-    target_key = f"T{tier_num}"
-    target_data = tier_data[target_key]
-    
-    # Tam Zincir Üretim
-    cost_zh_raw = sum([t_v["amount"] * price_inputs[t_k] for t_k, t_v in tier_data.items()])
-    cost_zh = cost_zh_raw + total_crafting_fee_zh
-    
-    # Ara Mamul Tedariki ile Üretim
-    cost_buy_lower_raw = target_data["amount"] * price_inputs[target_key]
-    cost_buy_lower_refined = target_data["lower_tier_needed"] * lower_tier_price_input
-    
-    enc_m = 1 if target_data["enchant"] == 0 else (2 ** target_data["enchant"])
-    fee_only_top = target_amount * (ITEM_VALUES[target_key] * enc_m) * 0.1125 * (station_fee / 100)
-    
-    cost_buy_lower = cost_buy_lower_raw + cost_buy_lower_refined + fee_only_top
-    
-    if cost_buy_lower > 0 and cost_zh > 0:
-        if cost_buy_lower < cost_zh:
-            make_vs_buy_decision = "Ara Mamul Tedariki (Hazır Al)"
-            savings = cost_zh - cost_buy_lower
-        else:
-            make_vs_buy_decision = "Tam Zincir Rafinasyon (Sıfırdan Üret)"
-            savings = cost_buy_lower - cost_zh
+with tab1:
+    if not calculated_data:
+        st.warning("Seçtiğin şehir ve kriterler için geçerli/güncel fiyat verisi bulunamadı." if is_tr else "No valid/fresh price data found for selected criteria.")
     else:
-        make_vs_buy_decision = "Veri Bekleniyor"
-
-if tier_num >= 3 and cost_zh > 0 and cost_buy_lower > 0:
-    st.markdown(f"""
-    <div class="analysis-panel">
-        <div style="font-size: 11px; font-weight: 600; color: #0a84ff; text-transform: uppercase; letter-spacing: 0.8px; margin-bottom: 12px;">Stratejik Tedarik Optimizasyonu</div>
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;">
-            <div>
-                <div style="font-size: 14px; color: #e2e8f0; margin-bottom: 4px;">Tam Zincir Rafinasyon Maliyeti: <span style="font-family: 'JetBrains Mono', monospace; font-weight: 500; color: #d1d1d6;">{cost_zh:,.0f} 🥈</span></div>
-                <div style="font-size: 14px; color: #e2e8f0;">Ara Mamul Satın Alımı ile Maliyet: <span style="font-family: 'JetBrains Mono', monospace; font-weight: 500; color: #d1d1d6;">{cost_buy_lower:,.0f} 🥈</span></div>
+        # Seviye seçici
+        calculated_df = pd.DataFrame(calculated_data)
+        selected_tier_name = st.selectbox("Detaylarını Görmek İstediğin Seviye (Tier):" if is_tr else "Select Tier for Deep Analysis:", calculated_df["Eşya Seviyesi"].unique())
+        
+        # Seçilen seviyenin detaylı kâr/maliyet kartı
+        row = calculated_df[calculated_df["Eşya Seviyesi"] == selected_tier_name].iloc[0]
+        
+        # Oyun İçi İkonlar ve Büyük Görsel Kart
+        st.markdown(f"### 🛡️ {row['Malzeme']} ({selected_tier_name}) Analizi")
+        
+        col_raw, col_prev, col_result = st.columns([3, 3, 4])
+        
+        with col_raw:
+            st.markdown(f"""
+            <div class="metric-card">
+                <p style="color:#B9935A; font-weight:bold;">🍀 Ham Kaynak (Raw Material)</p>
+                <img src="{get_item_icon(row['raw_p_id'])}" width="64" style="margin-bottom:10px;">
+                <p><b>Seviye Fiyatı:</b> {row['Ham Fiyat']:,} 🥈</p>
+                <p><b>Gerekli Miktar:</b> {TIER_FORMULAS[selected_tier_name[:2]]['raw_qty']} adet (Geri Dönüşle Düşer)</p>
             </div>
-            <div style="text-align: right; background: rgba(0,0,0,0.25); padding: 12px 18px; border-radius: 10px; border: 1px solid rgba(255,255,255,0.06);">
-                <div style="font-size: 11px; color: #86868b; margin-bottom: 2px;">SİSTEM ÖNERİSİ</div>
-                <div style="font-size: 18px; font-weight: 600; color: {'#30d158' if make_vs_buy_decision == 'Ara Mamul Tedariki (Hazır Al)' else '#f5f5f7'};">{make_vs_buy_decision}</div>
-                <div style="font-size: 12px; color: #30d158; margin-top: 4px;">Fiyat Avantajı: {savings:,.0f} 🥈</div>
+            """, unsafe_allow_html=True)
+            
+        with col_prev:
+            st.markdown(f"""
+            <div class="metric-card">
+                <p style="color:#B9935A; font-weight:bold;">🧱 Bir Önceki Seviye (Flat Refined)</p>
+                <img src="{get_item_icon(row['prev_p_id'])}" width="64" style="margin-bottom:10px;">
+                <p><b>Eşya Fiyatı:</b> {row['Önceki Seviye Fiyat']:,} 🥈</p>
+                <p><b>Gerekli Miktar:</b> {TIER_FORMULAS[selected_tier_name[:2]]['prev_qty']} adet</p>
             </div>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True)
+            
+        with col_result:
+            kar_renk = "#10B981" if row["Net Kâr"] > 0 else "#EF4444"
+            st.markdown(f"""
+            <div class="metric-card" style="border: 2px solid #B9935A;">
+                <p style="color:#B9935A; font-weight:bold; font-size:18px;">✨ Rafinasyon Sonucu (Refined Product)</p>
+                <img src="{get_item_icon(row['ref_p_id'])}" width="64" style="margin-bottom:10px;">
+                <p><b>Pazar Satış Fiyatı:</b> {row['İşlenmiş Fiyat']:,} 🥈</p>
+                <p><b>Efektif Maliyet (Vergi Hariç):</b> {row['Efektif Maliyet']:,} 🥈</p>
+                <p><b>Net Kâr:</b> <span style="color:{kar_renk}; font-size:22px; font-weight:bold;">{row['Net Kâr']:,} 🥈</span></p>
+                <p><b>Yatırımın Getirisi (ROI):</b> <span style="color:{kar_renk}; font-weight:bold;">% {row['Kâr Oranı (ROI)']:.2f}</span></p>
+                <p style="font-size:12px; color:#9CA3AF;">Veri Yaşı: {row['En Son Güncelleme']}</p>
+            </div>
+            """, unsafe_allow_html=True)
 
-with st.expander("Gelişmiş Seçenekler: Yan Ürün Hasılatı (İşçi Defterleri)"):
-    use_journals = st.checkbox("Üretim esnasında 'Generalist Journal' doldurulacak", value=False)
-    journal_extra_profit = 0
-    if use_journals:
-        j1, j2 = st.columns(2)
-        empty_j = j1.number_input("Boş Defter Tedarik Fiyatı", value=1500, step=100)
-        full_j = j2.number_input("Dolu Defter Satış Fiyatı", value=7500, step=100)
-        journals_filled = int(target_amount / 120)
-        journal_extra_profit = max(0, journals_filled * (full_j - empty_j))
-        st.caption(f"Öngörülen Dolum Hacmi: {journals_filled} Birim | Ekstra Yan Ürün Net Kârı: +{journal_extra_profit:,.0f} 🥈")
-
-# --- BÖLÜM 4: FİNANSAL TABLO & BİLANÇO ---
-total_raw_cost = sum([tier_data[t_k]["amount"] * price_inputs[t_k] for t_k in tier_data.keys()])
-gross_revenue = target_amount * sell_price_input
-total_tax_amount = gross_revenue * total_market_tax
-net_revenue = gross_revenue - total_tax_amount 
-
-total_profit = net_revenue - total_raw_cost - total_crafting_fee_zh + journal_extra_profit
-margin = (total_profit / gross_revenue * 100) if gross_revenue > 0 else 0.0
-
-total_gross_costs = total_raw_cost + total_crafting_fee_zh - journal_extra_profit
-break_even_price = math.ceil(total_gross_costs / (target_amount * (1 - total_market_tax))) if target_amount > 0 else 0
-
-st.markdown("<p style='font-size: 12px; font-weight: 600; color: #86868b; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 20px; margin-bottom: 12px;'>III. Kurumsal Finansal Bilanço (Tam Zincir)</p>", unsafe_allow_html=True)
-
-st.markdown(f"""
-<div class="metric-grid">
-    <div class="apple-card">
-        <div class="apple-metric-label">Hammadde Maliyeti</div>
-        <div class="apple-metric-val">{total_raw_cost:,.0f} <span style="font-size: 16px; color: #86868b;">🥈</span></div>
-    </div>
-    <div class="apple-card">
-        <div class="apple-metric-label">Tesis Kullanım Bedeli</div>
-        <div class="apple-metric-val">-{total_crafting_fee_zh:,.0f} <span style="font-size: 16px; color: #86868b;">🥈</span></div>
-    </div>
-    <div class="apple-card">
-        <div class="apple-metric-label">Brüt Pazar Hasılatı</div>
-        <div class="apple-metric-val">{net_revenue:,.0f} <span style="font-size: 16px; color: #86868b;">🥈</span></div>
-    </div>
-    <div class="apple-card" style="background: rgba(48, 209, 88, 0.05); border-color: rgba(48, 209, 88, 0.2);">
-        <div class="apple-metric-label" style="color: #30d158;">Net Kâr Dağılımı</div>
-        <div class="apple-metric-val" style="color: #30d158;">{total_profit:,.0f} <span style="font-size: 16px;">🥈</span></div>
-        <div class="apple-metric-sub" style="color: #30d158;">%{margin:.1f} Özkaynak Kârlılığı</div>
-    </div>
-</div>
-""", unsafe_allow_html=True)
-
-i1, i2 = st.columns(2)
-with i1:
-    st.markdown(f"""
-    <div class="apple-card" style="padding: 14px 18px;">
-        <span style="font-size: 11px; color: #86868b; text-transform: uppercase; font-weight: 500;">Başabaş Noktası (Break-Even)</span>
-        <div style="font-size: 18px; font-weight: 600; color: #f5f5f7; margin-top: 4px;">{break_even_price:,} 🥈 <span style="font-size: 12px; color: #6e6e73; font-weight: 400;">/ birim asgari satış tutarı</span></div>
-    </div>
-    """, unsafe_allow_html=True)
-with i2:
-    st.markdown(f"""
-    <div class="apple-card" style="padding: 14px 18px;">
-        <span style="font-size: 11px; color: #86868b; text-transform: uppercase; font-weight: 500;">Tahmini Şöhret (Fame)</span>
-        <div style="font-size: 18px; font-weight: 600; color: #f5f5f7; margin-top: 4px;">+{total_fame_zh:,.0f} Fame <span style="font-size: 12px; color: #6e6e73; font-weight: 400;">deneyim puanı</span></div>
-    </div>
-    """, unsafe_allow_html=True)
-
-if use_focus:
-    total_focus_used = target_amount * focus_per_unit
-    spf = (total_profit / total_focus_used) if total_focus_used > 0 else 0
-    st.markdown(f"""
-    <div style="background: rgba(10, 132, 255, 0.05); border: 1px solid rgba(10, 132, 255, 0.15); border-radius: 12px; padding: 12px 18px; margin-top: 14px;">
-        <span style="font-weight: 500; font-size: 13px; color: #0a84ff;">Odaklanma (Focus) Verimlilik Raporu:</span> 
-        <span style="font-size: 13px; color: #d1d1d6;">Harcanan: <b>{total_focus_used:,} Focus</b> | Verim: <b>{spf:.1f} Gümüş / Focus</b></span>
-    </div>
-    """, unsafe_allow_html=True)
-
-# --- BÖLÜM 5: EMİR DEFTERİ (ORDER BOOK) ---
-st.markdown("<p style='font-size: 12px; font-weight: 600; color: #86868b; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 30px; margin-bottom: 12px;'>IV. Piyasa Derinliği ve Emir Defteri (Son İşlemler)</p>", unsafe_allow_html=True)
-
-if depth_data:
-    df_raw = pd.DataFrame(depth_data)
-    col_sell_order, col_buy_order = st.columns(2)
-    
-    with col_sell_order:
-        st.markdown("<span style='font-size: 11px; color: #ff453a; font-weight: 600; letter-spacing: 0.5px;'>SATIŞ EMİRLERİ (ASK)</span>", unsafe_allow_html=True)
-        if "sell_price_min" in df_raw.columns:
-            df_sells = df_raw[df_raw["sell_price_min"] > 0][["city", "sell_price_min", "sell_price_min_date"]].copy()
-            df_sells.columns = ["Lokasyon", "Birim Fiyat", "Zaman Damgası"]
-            df_sells = df_sells.sort_values(by="Birim Fiyat", ascending=True).head(10)
-            st.dataframe(df_sells, use_container_width=True, hide_index=True)
+with tab2:
+    if not calculated_data:
+        st.warning("Karşılaştırma yapabilmek için yeterli veri yok." if is_tr else "Not enough data for comparison.")
+    else:
+        # Tablo ve Görsel Grafik
+        st.markdown("### 🏆 Tüm Seviyelerin Kârlılık Karşılaştırması")
+        
+        comp_df = pd.DataFrame(calculated_data)
+        
+        # Karşılaştırma Grafiği (M3 ve Bulut İçin Optimize Plotly)
+        fig = px.bar(
+            comp_df,
+            x="Eşya Seviyesi",
+            y="Net Kâr",
+            color="Kâr Oranı (ROI)",
+            hover_name="Malzeme",
+            labels={"Eşya Seviyesi": "Seviye (Tier)", "Net Kâr": "Kâr (Gümüş) 🥈"},
+            template="plotly_dark",
+            color_continuous_scale="Viridis"
+        )
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Karşılaştırma Detay Tablosu (Doğrudan Oyuna Özgü)
+        display_comp = comp_df[['Eşya Seviyesi', 'Malzeme', 'Ham Fiyat', 'Önceki Seviye Fiyat', 'İşlenmiş Fiyat', 'Efektif Maliyet', 'Net Kâr', 'Kâr Oranı (ROI)', 'En Son Güncelleme']].copy()
+        
+        display_comp['Ham Fiyat'] = display_comp['Ham Fiyat'].apply(lambda x: f"{x:,} 🥈")
+        display_comp['Önceki Seviye Fiyat'] = display_comp['Önceki Seviye Fiyat'].apply(lambda x: f"{x:,} 🥈")
+        display_comp['İşlenmiş Fiyat'] = display_comp['İşlenmiş Fiyat'].apply(lambda x: f"{x:,} 🥈")
+        display_comp['Efektif Maliyet'] = display_comp['Efektif Maliyet'].apply(lambda x: f"{x:,} 🥈")
+        display_comp['Net Kâr'] = display_comp['Net Kâr'].apply(lambda x: f"{x:,} 🥈")
+        display_comp['Kâr Oranı (ROI)'] = display_comp['Kâr Oranı (ROI)'].round(2)
+        
+        if is_tr:
+            display_comp.columns = ['Seviye', 'Eşya', 'Ham Fiyat', 'Önceki Seviye Fiyat', 'İşlenmiş Fiyat', 'Maliyet', 'Net Kâr', 'Kâr Oranı (ROI) %', 'Güncelleme']
         else:
-            st.caption("Aktif satış emri bulunmamaktadır.")
-
-    with col_buy_order:
-        st.markdown("<span style='font-size: 11px; color: #30d158; font-weight: 600; letter-spacing: 0.5px;'>ALIŞ TEKLİFLERİ (BID)</span>", unsafe_allow_html=True)
-        if "buy_price_max" in df_raw.columns:
-            df_buys = df_raw[df_raw["buy_price_max"] > 0][["city", "buy_price_max", "buy_price_max_date"]].copy()
-            df_buys.columns = ["Lokasyon", "Birim Fiyat", "Zaman Damgası"]
-            df_buys = df_buys.sort_values(by="Birim Fiyat", ascending=False).head(10)
-            st.dataframe(df_buys, use_container_width=True, hide_index=True)
-        else:
-            st.caption("Aktif alış teklifi bulunmamaktadır.")
-else:
-    st.info("Bu varlık için bölgesel emir defteri verisi şu an mevcut değil.")
-
-# --- BÖLÜM 6: LOJİSTİK VE YÜK HESABI ---
-st.markdown("<p style='font-size: 12px; font-weight: 600; color: #86868b; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 30px; margin-bottom: 12px;'>V. Lojistik ve Sevkiyat Planlaması</p>", unsafe_allow_html=True)
-c_w1, c_w2 = st.columns(2)
-
-MOUNTS = {
-    "T8 Elder's Taşıma Öküzü (3,347 kg)": 3347,
-    "T7 Grandmaster's Öküzü (2,700 kg)": 2700,
-    "T6 Master's Öküzü (2,150 kg)": 2150,
-    "T5 Expert's Öküzü (1,650 kg)": 1650,
-    "Taşıma Mamutu (28,000 kg)": 28000,
-    "Özel Yük Kapasitesi Girin": 0
-}
-selected_mount = c_w1.selectbox("Nakliye Bineği Sınıfı", list(MOUNTS.keys()), index=0)
-
-if selected_mount == "Özel Yük Kapasitesi Girin":
-    mount_cap = c_w1.number_input("Taşıma Kapasitesi (kg)", min_value=1, value=3347, step=50)
-else:
-    mount_cap = MOUNTS[selected_mount]
-
-eat_pork_pie = c_w1.checkbox("Pork Pie Etkisi Geçerli (+%30 Taşıma Kapasitesi)", value=False)
-if eat_pork_pie:
-    mount_cap = int(mount_cap * 1.30)
-
-trips_needed = math.ceil(total_weight_zh / mount_cap) if mount_cap > 0 else 1
-
-with c_w2:
-    st.markdown(f"""
-    <div class="apple-card" style="padding: 16px 20px;">
-        <div style="font-size: 11px; font-weight: 500; color: #86868b; text-transform: uppercase;">Toplam Sevkiyat Hacmi</div>
-        <div style="font-size: 22px; font-weight: 600; color: #f5f5f7; margin-top: 2px;">{total_weight_zh:,.1f} kg</div>
-        <hr style="border: 0; border-top: 1px solid rgba(255, 255, 255, 0.08); margin: 10px 0;">
-        <div style="font-size: 11px; font-weight: 500; color: #86868b; text-transform: uppercase;">Gereken Lojistik Seferi</div>
-        <div style="font-size: 22px; font-weight: 600; color: #0a84ff; margin-top: 2px;">{trips_needed} Tur <span style="font-size: 12px; color: #6e6e73; font-weight: 400;">({mount_cap:,} kg kapasite)</span></div>
-    </div>
-    """, unsafe_allow_html=True)
-
-# Mesafe Analizi
-distances = {
-    "Fort Sterling": {"Lymhurst": 4, "Thetford": 5, "Martlock": 7, "Bridgewatch": 6},
-    "Thetford": {"Fort Sterling": 5, "Lymhurst": 7, "Martlock": 4, "Bridgewatch": 5},
-    "Martlock": {"Thetford": 4, "Fort Sterling": 7, "Lymhurst": 6, "Bridgewatch": 3},
-    "Bridgewatch": {"Martlock": 3, "Thetford": 5, "Fort Sterling": 6, "Lymhurst": 4},
-    "Lymhurst": {"Bridgewatch": 4, "Martlock": 6, "Thetford": 7, "Fort Sterling": 4}
-}
-
-if buy_city != sell_city and buy_city != "Caerleon" and sell_city != "Caerleon":
-    zones = distances[buy_city][sell_city]
-    one_trip_time = zones * 1.5
-    total_time = trips_needed * one_trip_time
-    st.caption(f"📍 **Güzergah:** {buy_city} ➔ {sell_city} ({zones} Sektör) • Tahmini Nakliye Süresi: **~{total_time:.1f} Dakika**")
-elif buy_city == "Caerleon" or sell_city == "Caerleon":
-    st.markdown("""
-    <div style="background: rgba(255, 69, 58, 0.08); border: 1px solid rgba(255, 69, 58, 0.2); border-radius: 12px; padding: 10px 14px; margin-top: 10px;">
-        <span style="font-weight: 600; color: #ff453a;">Güvenlik İhlali Riski:</span> Caerleon güzergahı Red Zone (PVP) içermektedir. Nakliyede zırhlı binek kullanımı zorunludur.
-    </div>
-    """, unsafe_allow_html=True)
-
-# --- ALT BİLGİ ---
-st.markdown("---")
-st.markdown("""
-<div style="display: flex; justify-content: space-between; align-items: center; color: #48484a; font-size: 12px; padding: 12px 0;">
-    <div>KMZ Studio • Kurumsal Arbitraj Terminali v9.0</div>
-    <div>Tüm sistemler aktiftir.</div>
-</div>
-""", unsafe_allow_html=True)
-
+            display_comp.columns = ['Tier', 'Item', 'Raw Price', 'Prev Tier Price', 'Refined Price', 'Cost', 'Net Profit', 'ROI %', 'Delay']
+            
+        st.dataframe(
+            display_comp, 
+            use_container_width=True, 
+            hide_index=True,
+            column_config={display_comp.columns[7]: st.column_config.NumberColumn(format="%.2f%%")}
+        )
