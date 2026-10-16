@@ -35,7 +35,7 @@ st.markdown("""
         font-family: 'Cinzel', serif;
         text-align: center;
         padding: 16px;
-        margin-bottom: 20px;
+        margin-bottom: 18px;
         background: linear-gradient(180deg, #1E2631 0%, #11161D 100%);
         border: 2px solid #8A6D3B;
         border-radius: 8px;
@@ -84,7 +84,7 @@ st.markdown("""
         background: linear-gradient(135deg, #231D14 0%, #12151A 100%);
         border: 2px solid #D4AF37;
         border-radius: 10px;
-        padding: 16px;
+        padding: 18px;
         animation: pulseGold 3s infinite ease-in-out;
         transition: transform 0.3s ease;
         margin-bottom: 14px;
@@ -94,7 +94,7 @@ st.markdown("""
         background: linear-gradient(135deg, #10212B 0%, #12151A 100%);
         border: 2px solid #38BDF8;
         border-radius: 10px;
-        padding: 16px;
+        padding: 18px;
         animation: pulseBlue 3s infinite ease-in-out;
         transition: transform 0.3s ease;
         margin-bottom: 14px;
@@ -105,8 +105,8 @@ st.markdown("""
     }
 
     .item-icon {
-        width: 64px;
-        height: 64px;
+        width: 68px;
+        height: 68px;
         animation: floatIcon 3.5s ease-in-out infinite;
         filter: drop-shadow(0 5px 8px rgba(0,0,0,0.7));
         transition: transform 0.2s ease;
@@ -117,13 +117,15 @@ st.markdown("""
         filter: drop-shadow(0 0 12px rgba(255, 215, 0, 0.8));
     }
 
-    .bonus-badge {
-        background: linear-gradient(90deg, #1E3A8A 0%, #0F172A 100%);
-        border-left: 4px solid #38BDF8;
-        padding: 10px 15px;
-        border-radius: 4px;
+    .locked-city-box {
+        background: linear-gradient(90deg, #1E293B 0%, #0F172A 100%);
+        border: 1px solid #38BDF8;
+        border-left: 5px solid #38BDF8;
+        padding: 10px 14px;
+        border-radius: 6px;
         margin-bottom: 15px;
         font-size: 14px;
+        color: #E2E8F0;
     }
 
     .stButton>button {
@@ -150,53 +152,64 @@ is_tr = (lang == "Türkçe")
 st.markdown(f"""
 <div class="animated-header">
     <h1>ENLİL - GOD TIER REFINE SCANNER</h1>
-    <p>{"Albion Online Çoklu Şehir Rafinasyon & Geri Dönüşüm Hesaplayıcısı" if is_tr else "Albion Online Multi-City Refining & Recycling Calculator"}</p>
+    <p>{"Albion Online Ham Madde Rafinasyon & Kâr Radarı" if is_tr else "Albion Online Raw Material Refining & Profit Radar"}</p>
 </div>
 """, unsafe_allow_html=True)
 
-# --- KAYNAK SÖZLÜĞÜ VE BONUS ŞEHİRLERİ ---
+# --- KAYNAK SÖZLÜĞÜ VE KİLİTLİ BONUS ŞEHİRLERİ ---
 RESOURCES = {
-    "🌿 Elyaf (Fiber -> Cloth)": {
+    "🌿 Elyaf (Fiber ➔ Cloth)": {
         "raw": "FIBER", "refined": "CLOTH", "bonus_city": "Lymhurst",
         "tr_raw": "Elyaf", "tr_ref": "Kumaş", "en_raw": "Fiber", "en_ref": "Cloth"
     },
-    "⛏️ Cevher (Ore -> Metal Bar)": {
+    "⛏️ Cevher (Ore ➔ Metal Bar)": {
         "raw": "ORE", "refined": "METALBAR", "bonus_city": "Thetford",
         "tr_raw": "Cevher", "tr_ref": "Külçe", "en_raw": "Ore", "en_ref": "Metal Bar"
     },
-    "🐾 Deri (Hide -> Leather)": {
+    "🐾 Deri (Hide ➔ Leather)": {
         "raw": "HIDE", "refined": "LEATHER", "bonus_city": "Martlock",
         "tr_raw": "Ham Deri", "tr_ref": "Deri", "en_raw": "Hide", "en_ref": "Leather"
     },
-    "🌲 Odun (Wood -> Planks)": {
+    "🌲 Odun (Wood ➔ Planks)": {
         "raw": "WOOD", "refined": "PLANKS", "bonus_city": "Fort Sterling",
         "tr_raw": "Tomruk", "tr_ref": "Kalas", "en_raw": "Wood", "en_ref": "Planks"
     },
-    "🪨 Taş (Stone -> Stone Block)": {
+    "🪨 Taş (Stone ➔ Stone Block)": {
         "raw": "STONE", "refined": "STONEBLOCK", "bonus_city": "Bridgewatch",
         "tr_raw": "Kaya", "tr_ref": "Taş Blok", "en_raw": "Stone", "en_ref": "Stone Block"
     }
 }
 
-TIER_FORMULAS = {
-    "T3": {"raw_qty": 2, "prev_qty": 1, "prev_tier": "T2"},
-    "T4": {"raw_qty": 2, "prev_qty": 1, "prev_tier": "T3"},
-    "T5": {"raw_qty": 3, "prev_qty": 1, "prev_tier": "T4"},
-    "T6": {"raw_qty": 4, "prev_qty": 1, "prev_tier": "T5"},
-    "T7": {"raw_qty": 5, "prev_qty": 1, "prev_tier": "T6"},
-    "T8": {"raw_qty": 5, "prev_qty": 1, "prev_tier": "T7"},
+# Her seviye için gereken saf ham madde miktarı
+RAW_QTY_BY_TIER = {
+    "T2": 1,
+    "T3": 2,
+    "T4": 2,
+    "T5": 3,
+    "T6": 4,
+    "T7": 5,
+    "T8": 5,
 }
 
 ROYAL_CITIES = ["Lymhurst", "Bridgewatch", "Martlock", "Thetford", "Fort Sterling"]
 
-# --- SOL PANEL: 1. KAYNAK VE TIER SEÇİMİ ---
+# --- SOL PANEL: 1. KAYNAK VE SEVİYE SEÇİMİ ---
 st.sidebar.header("📦 1. Kaynak & Seviye Seçimi" if is_tr else "📦 1. Resource & Tier Filter")
 selected_res_key = st.sidebar.selectbox("Üretilecek Kaynak:" if is_tr else "Resource Type:", list(RESOURCES.keys()))
 res_meta = RESOURCES[selected_res_key]
+locked_refine_city = res_meta["bonus_city"]
+
+# Kilitli Refine Şehri Gösterimi (Değiştirilemez)
+st.sidebar.markdown(f"""
+<div class="locked-city-box">
+    🔒 <b>{"Rafinasyon Şehri (Sabit)" if is_tr else "Refining City (Locked)"}:</b><br>
+    <span style="color:#38BDF8; font-size:16px; font-weight:800;">{locked_refine_city} (+%40 Bonus)</span>
+</div>
+""", unsafe_allow_html=True)
 
 selected_tiers = st.sidebar.multiselect(
     "Seviyeler (Tier):" if is_tr else "Select Tiers:",
-    options=["T3", "T4", "T5", "T6", "T7", "T8"],
+    options=["T2", "T3", "T4", "T5", "T6", "T7", "T8"],
     default=["T4", "T5", "T6", "T7", "T8"]
 )
 
@@ -206,24 +219,18 @@ selected_enchants = st.sidebar.multiselect(
     default=[".0", ".1", ".2", ".3"]
 )
 
-# --- SOL PANEL: 2. ALIŞ VE SATIŞ ŞEHİRLERİ ---
+# --- SOL PANEL: 2. ALIŞ VE SATIŞ ŞEHİRLERİ (SADECE HAM MADDE VE SATIŞ) ---
 st.sidebar.markdown("---")
 st.sidebar.header("🗺️ 2. Alış & Satış Şehirleri" if is_tr else "🗺️ 2. Buy & Sell Cities")
 
-include_caerleon = st.sidebar.checkbox("Caerleon'u Dahil Et (Kırmızı Bölge)" if is_tr else "Include Caerleon", value=False)
+include_caerleon = st.sidebar.checkbox("Caerleon'u Dahil Et" if is_tr else "Include Caerleon", value=False)
 active_cities = ROYAL_CITIES + (["Caerleon"] if include_caerleon else [])
 
 auto_cheapest_label = "🌟 Otomatik (En Ucuz Şehir)" if is_tr else "🌟 Auto (Cheapest City)"
 auto_highest_label = "💰 Otomatik (En Pahalı Şehir)" if is_tr else "💰 Auto (Highest Price City)"
 
 raw_buy_city_mode = st.sidebar.selectbox(
-    "Hammadde Alış Şehri:" if is_tr else "Raw Material Buy City:",
-    options=[auto_cheapest_label] + active_cities,
-    index=0
-)
-
-prev_buy_city_mode = st.sidebar.selectbox(
-    "Önceki Seviye İşlenmiş Alış Şehri:" if is_tr else "Prev Tier Refined Buy City:",
+    "Ham Madde Alış Şehri:" if is_tr else "Raw Material Buy City:",
     options=[auto_cheapest_label] + active_cities,
     index=0
 )
@@ -234,90 +241,62 @@ sell_city_mode = st.sidebar.selectbox(
     index=0
 )
 
-# --- SOL PANEL: 3. RRR VE VERGİ AYARLARI ---
+# --- SOL PANEL: 3. BONUS ŞEHİR RRR VE VERGİ ---
 st.sidebar.markdown("---")
-st.sidebar.header("⚒️ 3. RRR & Vergi Ayarları" if is_tr else "⚒️ 3. RRR & Tax Settings")
+st.sidebar.header("⚒️ 3. Bonus RRR & Vergi" if is_tr else "⚒️ 3. Bonus RRR & Tax")
 
-rrr_preset = st.sidebar.selectbox(
-    "Geri Dönüş (RRR) Senaryosu:" if is_tr else "RRR Preset:",
+rrr_mode = st.sidebar.radio(
+    f"{locked_refine_city} Geri Dönüş Oranı (RRR):" if is_tr else f"{locked_refine_city} RRR Mode:",
     (
-        "Bonuslu Şehir - Focus Yok (%36.7)",
-        "Bonuslu Şehir + Focus (%53.9)",
-        "Sıradan Şehir - Focus Yok (%15.2)",
-        "Sıradan Şehir + Focus (%43.5)",
-        "Özel RRR Değeri Gir"
+        "🔥 Focus Yok (%36.7 RRR)",
+        "⚡ Focus İle (%53.9 RRR)"
     ),
     index=0
 )
+rrr_value = 36.7 if "36.7" in rrr_mode else 53.9
 
-if "36.7" in rrr_preset: rrr_value = 36.7
-elif "53.9" in rrr_preset: rrr_value = 53.9
-elif "15.2" in rrr_preset: rrr_value = 15.2
-elif "43.5" in rrr_preset: rrr_value = 43.5
-else: rrr_value = st.sidebar.slider("Özel RRR (%):", 0.0, 60.0, 36.7, 0.1)
-
-market_tax = st.sidebar.slider("Satış Vergisi (%)" if is_tr else "Market Tax (%)", 0.0, 10.0, 4.0, 0.1, help="Premium ile doğrudan satış %4, Satış Emri (Sell Order) kurulum dahil %6.5")
-station_fee_per_item = st.sidebar.number_input("Birim Başı İstasyon Vergisi (Gümüş)" if is_tr else "Station Fee per Item", min_value=0, value=0, step=10)
+market_tax = st.sidebar.slider("Pazar Satış Vergisi (%)" if is_tr else "Market Tax (%)", 0.0, 10.0, 4.0, 0.1)
 max_data_age = st.sidebar.slider("Maks. Veri Yaşı (Dakika)" if is_tr else "Max Data Age (Mins)", 10, 1440, 300, 10)
 batch_size = st.sidebar.number_input("Üretim Adedi (Simülasyon)" if is_tr else "Batch Size", min_value=1, value=300, step=50)
 
 if st.sidebar.button("🔄 Verileri Şimdi Yenile" if is_tr else "🔄 Refresh Market Data", use_container_width=True):
     st.cache_data.clear()
 
-# --- BONUS ŞEHRİ BİLGİ BARI ---
-st.markdown(f"""
-<div class="bonus-badge">
-    💡 <b>{"İdeal Rafinasyon (Üretim) Şehri" if is_tr else "Ideal Refining City"}:</b> 
-    <span style="color:#38BDF8; font-weight:bold;">{res_meta['bonus_city']}</span> 
-    ({"%40 Üretim Bonusu -> %36.7 RRR (Focus'suz) / %53.9 RRR (Focus'lu)" if is_tr else "+40% Refining Bonus -> 36.7% RRR (No Focus) / 53.9% RRR (Focus)"})
-</div>
-""", unsafe_allow_html=True)
-
 if not selected_tiers or not selected_enchants:
     st.warning("👈 Lütfen sol menüden en az bir Seviye (Tier) ve Büyü (Enchant) seçin.")
     st.stop()
 
-# --- DOĞRU ALBION ID VE KOMBINASYON MOTORU ---
+# --- DOĞRU ALBION ID ÜRETİCİ (SADECE HAM MADDE VE İŞLENMİŞ ÜRÜN) ---
 def make_item_id(tier, base_type, enc):
     if enc == ".0" or tier in ["T2", "T3"]:
         return f"{tier}_{base_type}"
     lvl = enc.replace(".", "")
-    # Albion Data Project'te enchantlı kaynakların gerçek ID formatı: T4_ORE_LEVEL1@1
     return f"{tier}_{base_type}_LEVEL{lvl}@{lvl}"
 
 combos = []
 for tier in selected_tiers:
     for enc in selected_enchants:
-        # T3 ve Taş (Stone) için sadece .0 (Düz) rafinasyon standarttır
-        if tier == "T3" and enc != ".0":
+        # T2, T3 ve Taş (Stone) için sadece .0 (Düz) bulunur
+        if tier in ["T2", "T3"] and enc != ".0":
             continue
         if res_meta["raw"] == "STONE" and enc != ".0":
             continue
 
         raw_id = make_item_id(tier, res_meta["raw"], enc)
         ref_id = make_item_id(tier, res_meta["refined"], enc)
-        
-        prev_tier = TIER_FORMULAS[tier]["prev_tier"]
-        # ALBION KURALI: T4.1/4.2/4.3/4.4 üretirken düz T3.0 kullanılır. T5+ enchantlı üretirken önceki tier da aynı enchantta olur!
-        prev_enc = ".0" if tier in ["T3", "T4"] else enc
-        prev_id = make_item_id(prev_tier, res_meta["refined"], prev_enc)
 
         combos.append({
             "tier": tier,
             "enchant": enc,
             "label": f"{tier}{enc}",
             "raw_id": raw_id,
-            "ref_id": ref_id,
-            "prev_id": prev_id,
-            "prev_label": f"{prev_tier}{prev_enc}"
+            "ref_id": ref_id
         })
 
-# Tüm olası ID'leri topla (T2'den T8'e)
 all_query_ids = set()
 for c in combos:
-    all_query_ids.update([c["raw_id"], c["ref_id"], c["prev_id"]])
-    # API uyumluluğu için @1 olmayan versiyonlarını da sorguya ekle
-    all_query_ids.update([c["raw_id"].split("@")[0], c["ref_id"].split("@")[0], c["prev_id"].split("@")[0]])
+    all_query_ids.update([c["raw_id"], c["ref_id"]])
+    all_query_ids.update([c["raw_id"].split("@")[0], c["ref_id"].split("@")[0]])
 
 all_item_ids = list(all_query_ids)
 
@@ -334,7 +313,7 @@ async def fetch_url(session, url):
     return []
 
 async def fetch_refining_data(items, locs):
-    chunk_size = 65
+    chunk_size = 70
     urls = [f"{BASE_URL}/{','.join(items[i:i + chunk_size])}?locations={locs}" for i in range(0, len(items), chunk_size)]
     async with aiohttp.ClientSession() as session:
         tasks = [fetch_url(session, url) for url in urls]
@@ -360,13 +339,12 @@ def get_item_icon(item_id):
     return f"https://render.albiononline.com/v1/item/{item_id}.png"
 
 def normalize_id(item_id):
-    # T4_ORE_LEVEL1 gelirse T4_ORE_LEVEL1@1 ile eşleşmesi için normalize et
     if "_LEVEL" in item_id and "@" not in item_id:
         lvl = item_id.split("_LEVEL")[1][0]
         return f"{item_id}@{lvl}"
     return item_id
 
-with st.spinner("⚡ Tüm Şehirlerin Pazar Verileri Asenkron Taranıyor..."):
+with st.spinner("⚡ Pazar Verileri Asenkron Taranıyor..."):
     raw_api_data = get_data_sync(all_item_ids, ",".join(active_cities))
 
 if not raw_api_data:
@@ -377,10 +355,8 @@ df = pd.DataFrame(raw_api_data)
 df['age'] = df['sell_price_min_date'].apply(calc_age)
 df['norm_id'] = df['item_id'].apply(normalize_id)
 
-# Geçerli fiyatları filtrele
 valid_df = df[(df['city'].isin(active_cities)) & (df['sell_price_min'] > 0) & (df['age'] <= max_data_age)]
 
-# Şehir bazlı en iyi fiyatları bulucu yardımcı fonksiyon
 def get_best_price(norm_item_id, city_mode, find_min=True):
     sub = valid_df[valid_df['norm_id'] == norm_item_id]
     if sub.empty:
@@ -397,79 +373,71 @@ def get_best_price(norm_item_id, city_mode, find_min=True):
         
     return int(best_row['sell_price_min']), best_row['city'], int(best_row['age'])
 
-# --- HESAPLAMA MOTORU ---
+# --- SADECE HAM MADDE BAZLI HESAPLAMA MOTORU ---
 calculated_data = []
 rrr_factor = 1 - (rrr_value / 100.0)
 
 for c in combos:
     tier = c["tier"]
-    formula = TIER_FORMULAS[tier]
+    raw_qty = RAW_QTY_BY_TIER[tier]
     
     raw_p, raw_city, raw_age = get_best_price(c["raw_id"], raw_buy_city_mode, find_min=True)
-    prev_p, prev_city, prev_age = get_best_price(c["prev_id"], prev_buy_city_mode, find_min=True)
     ref_p, sell_city, ref_age = get_best_price(c["ref_id"], sell_city_mode, find_min=False)
     
-    if raw_p == 0 or prev_p == 0 or ref_p == 0:
+    if raw_p == 0 or ref_p == 0:
         continue
         
-    max_age_row = max(raw_age, prev_age, ref_age)
+    max_age_row = max(raw_age, ref_age)
     
-    # Efektif malzeme gereksinimi (Geri dönüşüm hesaba katılarak)
-    eff_raw_qty = formula["raw_qty"] * rrr_factor
-    eff_prev_qty = formula["prev_qty"] * rrr_factor
+    # Efektif Ham Madde Gereksinimi (RRR Geri Dönüşümü Düşülmüş Net Miktar)
+    eff_raw_qty = raw_qty * rrr_factor
     
-    cost = (eff_raw_qty * raw_p) + (eff_prev_qty * prev_p) + station_fee_per_item
+    cost = eff_raw_qty * raw_p
     revenue = ref_p * (1 - (market_tax / 100.0))
     net_profit = revenue - cost
     roi = (net_profit / cost) * 100 if cost > 0 else 0
     
     calculated_data.append({
         "Seviye": c["label"],
-        "Tier": tier,
-        "Enchant": c["enchant"],
         "İkon": get_item_icon(c["ref_id"]),
         "Ham İkon": get_item_icon(c["raw_id"]),
-        "Önceki İkon": get_item_icon(c["prev_id"]),
         "Eşya": f"{c['label']} {res_meta['tr_ref' if is_tr else 'en_ref']}",
         "Ham Madde": f"{c['label']} {res_meta['tr_raw' if is_tr else 'en_raw']}",
-        "Önceki Seviye Adı": f"{c['prev_label']} {res_meta['tr_ref' if is_tr else 'en_ref']}",
-        "Ham Alış Şehri": raw_city,
+        "Alış Şehri": raw_city,
         "Ham Fiyat": raw_p,
-        "Önceki Alış Şehri": prev_city,
-        "Önceki Fiyat": prev_p,
+        "Refine Şehri": locked_refine_city,
         "Satış Şehri": sell_city,
         "Satış Fiyatı": ref_p,
-        "Efektif Maliyet": int(cost),
+        "Maliyet": int(cost),
         "Birim Kâr": int(net_profit),
         "Toplam Kâr": int(net_profit * batch_size),
         "ROI": round(roi, 2),
         "Gereken Ham (Toplam)": int(round(eff_raw_qty * batch_size)),
-        "Gereken Önceki (Toplam)": int(round(eff_prev_qty * batch_size)),
+        "Normal Ham (Birim)": raw_qty,
         "Yaş (Dk)": max_age_row
     })
 
 if not calculated_data:
-    st.warning("⚠️ Seçtiğin Tier/Enchant ve Şehir filtrelerinde güncel fiyat verisi bulunamadı. Sol menüden 'Maks. Veri Yaşı' süresini artırmayı veya şehirleri 'Otomatik' yapmayı dene.")
+    st.warning("⚠️ Seçtiğin Tier/Enchant ve Şehir filtrelerinde güncel fiyat verisi bulunamadı. Sol menüden 'Maks. Veri Yaşı' süresini artırmayı dene.")
     st.stop()
 
 calc_df = pd.DataFrame(calculated_data).sort_values(by="Birim Kâr", ascending=False)
 
-# --- GÖRSELDEKİ 2 SEKMELİ YAPI ---
+# --- 2 SEKMELİ DASHBOARD ---
 tab1, tab2 = st.tabs([
     "📊 Tek Seviye Detayı & Canlı Kartlar" if is_tr else "📊 Single Tier Detail & Live Cards",
-    "🛡️ Seviye Karşılaştırması & Rotalar" if is_tr else "🛡️ Tier Comparison & Routes"
+    "🛡️ Seviye Karşılaştırması" if is_tr else "🛡️ Tier Comparison"
 ])
 
 with tab1:
     left_col, right_col = st.columns([5.5, 5.5])
 
     with left_col:
-        st.markdown("### 📋 Rafinasyon Kâr Tablosu" if is_tr else "### 📋 Refining Profit Table")
+        st.markdown(f"### 📋 Rafinasyon Tablosu (🔒 {locked_refine_city})")
         st.dataframe(
             calc_df[[
-                "İkon", "Seviye", "Ham Alış Şehri", "Ham Fiyat", 
-                "Önceki Alış Şehri", "Önceki Fiyat", "Satış Şehri", 
-                "Satış Fiyatı", "Birim Kâr", "ROI"
+                "İkon", "Seviye", "Alış Şehri", "Ham Fiyat", 
+                "Satış Şehri", "Satış Fiyatı", "Maliyet", "Birim Kâr", "ROI"
             ]],
             use_container_width=True,
             hide_index=True,
@@ -477,19 +445,17 @@ with tab1:
             column_config={
                 "İkon": st.column_config.ImageColumn("", width="small"),
                 "Seviye": st.column_config.TextColumn("Tier"),
-                "Ham Alış Şehri": st.column_config.TextColumn("Ham Şehir"),
+                "Alış Şehri": st.column_config.TextColumn("Ham Alış"),
                 "Ham Fiyat": st.column_config.NumberColumn("Ham 🥈", format="%d"),
-                "Önceki Alış Şehri": st.column_config.TextColumn("Önceki Şehir"),
-                "Önceki Fiyat": st.column_config.NumberColumn("Önceki 🥈", format="%d"),
                 "Satış Şehri": st.column_config.TextColumn("Satış Şehri"),
                 "Satış Fiyatı": st.column_config.NumberColumn("Satış 🥈", format="%d"),
+                "Maliyet": st.column_config.NumberColumn("Maliyet 🥈", format="%d"),
                 "Birim Kâr": st.column_config.NumberColumn("Net Kâr 🥈", format="%d"),
                 "ROI": st.column_config.NumberColumn("ROI %", format="%.1f%%")
             }
         )
 
     with right_col:
-        # KULLANICININ İSTEDİĞİ SEVİYEYİ KARTTA İNCELEME SEÇENEĞİ
         tier_options = ["🏆 En Yüksek Kârlıyı Göster"] + list(calc_df["Seviye"].unique())
         picked_card_tier = st.selectbox("🎯 Kartta İncelenecek Seviyeyi Seç (Örn: T4.0):" if is_tr else "🎯 Select Tier to Inspect:", tier_options)
 
@@ -500,24 +466,22 @@ with tab1:
 
         kar_renk_1 = "#10B981" if top1["Birim Kâr"] > 0 else "#EF4444"
 
-        # 1. ALTIN KART: SEÇİLEN VEYA EN İYİ FIRSAT DETAYI
+        # 1. ALTIN KART: HAM MADDE ➔ İŞLENMİŞ ÜRÜN
         st.markdown(f"""
         <div class="god-card-gold">
             <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap;">
-                <div style="display:flex; align-items:center; gap:12px;">
+                <div style="display:flex; align-items:center; gap:15px;">
                     <img src="{top1['Ham İkon']}" class="item-icon" title="{top1['Ham Madde']}">
-                    <span style="font-size:22px; color:#D4AF37; font-weight:bold;">+</span>
-                    <img src="{top1['Önceki İkon']}" class="item-icon" title="{top1['Önceki Seviye Adı']}">
-                    <span style="font-size:22px; color:#D4AF37; font-weight:bold;">➔</span>
+                    <span style="font-size:26px; color:#D4AF37; font-weight:bold;">➔</span>
                     <img src="{top1['İkon']}" class="item-icon" title="{top1['Eşya']}">
                 </div>
                 <div style="text-align:center; padding:5px 10px;">
-                    <span style="color:#94A3B8; font-size:12px;">YATIRIM GETİRİSİ (ROI)</span><br>
+                    <span style="color:#94A3B8; font-size:12px;">ROI ORANI (%{rrr_value} RRR)</span><br>
                     <span style="color:{kar_renk_1}; font-size:28px; font-weight:800;">%{top1['ROI']}</span><br>
                     <span style="color:#CBD5E1; font-size:13px;">Birim Kâr: <b>{top1['Birim Kâr']:,} 🥈</b></span>
                 </div>
                 <div style="text-align:right; border-left:1px solid #4A3B23; padding-left:15px;">
-                    <span style="color:#FFD700; font-family:'Cinzel',serif; font-weight:800; font-size:15px;">👑 {top1['Eşya']}</span><br>
+                    <span style="color:#FFD700; font-family:'Cinzel',serif; font-weight:800; font-size:16px;">👑 {top1['Eşya']}</span><br>
                     <span style="color:#E2E8F0; font-size:13px;">{batch_size} Adet Üretim Net Kârı:</span><br>
                     <span style="color:{kar_renk_1}; font-size:24px; font-weight:800;">{top1['Toplam Kâr']:,} 🥈</span>
                 </div>
@@ -525,25 +489,22 @@ with tab1:
         </div>
         """, unsafe_allow_html=True)
 
-        # 2. MAVİ KART: TAM ALIŞVERİŞ VE ROTA REHBERİ
+        # 2. MAVİ KART: SADECE HAM MADDE ALIŞ -> BONUS ŞEHİR REFINE -> SATIŞ ROTASI
         st.markdown(f"""
         <div class="god-card-blue">
-            <div style="display:flex; justify-content:space-between; align-items:center;">
-                <div>
-                    <span style="color:#38BDF8; font-family:'Cinzel',serif; font-weight:800; font-size:15px;">🛒 {batch_size} ADET {top1['Seviye']} İÇİN ALIŞVERİŞ & ROTA LİSTESİ</span>
-                    <ul style="margin:8px 0 0 0; padding-left:18px; color:#E2E8F0; font-size:13.5px; line-height:1.7;">
-                        <li><b>1. Hammadde Al:</b> <span style="color:#FFD700;">{top1['Ham Alış Şehri']}</span> pazarından <b>{top1['Gereken Ham (Toplam)']:,} adet</b> {top1['Ham Madde']} al <i>(Birim: {top1['Ham Fiyat']:,} 🥈)</i></li>
-                        <li><b>2. Önceki Tier Al:</b> <span style="color:#FFD700;">{top1['Önceki Alış Şehri']}</span> pazarından <b>{top1['Gereken Önceki (Toplam)']:,} adet</b> {top1['Önceki Seviye Adı']} al <i>(Birim: {top1['Önceki Fiyat']:,} 🥈)</i></li>
-                        <li><b>3. Rafine Et:</b> <span style="color:#38BDF8;">{res_meta['bonus_city']}</span> şehrinde (%{rrr_value} RRR ile) işle.</li>
-                        <li><b>4. Satış Yap:</b> <span style="color:#10B981;">{top1['Satış Şehri']}</span> pazarında <b>{top1['Satış Fiyatı']:,} 🥈</b> fiyattan sat!</li>
-                    </ul>
-                </div>
+            <div>
+                <span style="color:#38BDF8; font-family:'Cinzel',serif; font-weight:800; font-size:15px;">🛒 {batch_size} ADET {top1['Seviye']} İÇİN ROTA & HAM MADDE LİSTESİ</span>
+                <ul style="margin:10px 0 0 0; padding-left:18px; color:#E2E8F0; font-size:14px; line-height:1.8;">
+                    <li><b>1. Ham Madde Al:</b> <span style="color:#FFD700; font-weight:bold;">{top1['Alış Şehri']}</span> pazarından toplam <b>{top1['Gereken Ham (Toplam)']:,} adet</b> {top1['Ham Madde']} çek <i>(Tanesi: {top1['Ham Fiyat']:,} 🥈)</i></li>
+                    <li><b>2. Bonuslu Şehirde İşle:</b> <span style="color:#38BDF8; font-weight:bold;">{locked_refine_city}</span> şehrinde <b>%{rrr_value} RRR</b> ile rafine et.</li>
+                    <li><b>3. Satış Yap:</b> Çıkan {batch_size} adet {top1['Eşya']} ürününü <span style="color:#10B981; font-weight:bold;">{top1['Satış Şehri']}</span> pazarında tanesi <b>{top1['Satış Fiyatı']:,} 🥈</b> fiyattan okut!</li>
+                </ul>
             </div>
         </div>
         """, unsafe_allow_html=True)
 
-        # 3. SAĞ ALT DYNAMIC GRAPH (Maliyet vs Satış Trendi)
-        st.markdown("#### 📈 Dynamic Graph (Maliyet vs Net Gelir)")
+        # 3. DYNAMIC GRAPH
+        st.markdown("#### 📈 Dynamic Graph (Ham Maliyet vs Satış Fiyatı)")
         plot_df = calc_df.sort_values(by="Seviye")
         
         fig = go.Figure()
@@ -554,8 +515,8 @@ with tab1:
             fill='tozeroy', fillcolor='rgba(56, 189, 248, 0.18)'
         ))
         fig.add_trace(go.Scatter(
-            x=plot_df["Seviye"], y=plot_df["Efektif Maliyet"],
-            mode='lines+markers', name='Efektif Maliyet 🥈',
+            x=plot_df["Seviye"], y=plot_df["Maliyet"],
+            mode='lines+markers', name='Ham Madde Maliyeti 🥈',
             line=dict(color='#D4AF37', width=3),
             fill='tozeroy', fillcolor='rgba(212, 175, 55, 0.22)'
         ))
@@ -570,14 +531,14 @@ with tab1:
         st.plotly_chart(fig, use_container_width=True)
 
 with tab2:
-    st.markdown("### 🏆 Seviye Bazlı Kâr ve Şehir Rotaları Karşılaştırması")
+    st.markdown(f"### 🏆 Tüm Seviyelerin Kârlılık Karşılaştırması (🔒 {locked_refine_city})")
     
     fig_bar = px.bar(
         calc_df.sort_values(by="Seviye"),
         x="Seviye",
         y="Birim Kâr",
         color="ROI",
-        hover_data=["Ham Alış Şehri", "Önceki Alış Şehri", "Satış Şehri", "Efektif Maliyet", "Satış Fiyatı"],
+        hover_data=["Alış Şehri", "Satış Şehri", "Maliyet", "Satış Fiyatı"],
         labels={"Birim Kâr": "Birim Başı Net Kâr (Gümüş) 🥈", "Seviye": "Tier / Enchant"},
         template="plotly_dark",
         color_continuous_scale="Tealgrn"
@@ -586,9 +547,9 @@ with tab2:
     
     st.dataframe(
         calc_df[[
-            "Seviye", "Eşya", "Ham Alış Şehri", "Ham Fiyat", 
-            "Önceki Alış Şehri", "Önceki Fiyat", "Satış Şehri", "Satış Fiyatı", 
-            "Efektif Maliyet", "Birim Kâr", "Toplam Kâr", "ROI", "Yaş (Dk)"
+            "Seviye", "Eşya", "Alış Şehri", "Ham Fiyat", 
+            "Refine Şehri", "Satış Şehri", "Satış Fiyatı", 
+            "Maliyet", "Birim Kâr", "Toplam Kâr", "ROI", "Yaş (Dk)"
         ]],
         use_container_width=True,
         hide_index=True
